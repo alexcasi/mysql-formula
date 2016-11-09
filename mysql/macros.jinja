@@ -1,0 +1,28 @@
+{% from "mysql/defaults.yaml" import rawmap with context %}
+{%- set mysql = salt['grains.filter_by'](rawmap, grain='os', merge=salt['pillar.get']('mysql:lookup')) %}
+
+{% set os = salt['grains.get']('os', None) %}
+{% set os_family = salt['grains.get']('os_family', None) %}
+{% set mysql_host = salt['pillar.get']('mysql:server:host', 'localhost') %}
+{% set mysql_root_user = salt['pillar.get']('mysql:server:root_user', 'root') %}
+{% set mysql_root_password = salt['pillar.get']('mysql:server:root_password', salt['grains.get']('server_id')) %}
+{% set mysql_salt_user = salt['pillar.get']('mysql:salt_user:salt_user_name', mysql_root_user) %}
+{% set mysql_salt_password = salt['pillar.get']('mysql:salt_user:salt_user_password', mysql_root_password) %}
+{% set mysql_unix_socket = mysql.config.sections.mysqld.socket %}
+
+{% macro mysql_connection_host() -%}
+{% if mysql_host == 'localhost' %}
+    - connection_unix_socket: '{{ mysql_unix_socket }}'
+{% else %}
+    - connection_host: '{{ mysql_host }}'
+{% endif %}
+{%- endmacro %}
+
+{% macro mysql_connection_args() -%}
+    {{ mysql_connection_host() }}
+    - connection_user: '{{ mysql_salt_user }}'
+    {% if mysql_salt_password %}
+    - connection_pass: '{{ mysql_salt_password }}'
+    {% endif %}
+    - connection_charset: utf8
+{%- endmacro %}

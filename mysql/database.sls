@@ -1,6 +1,5 @@
 {% from "mysql/defaults.yaml" import rawmap with context %}
-{%- set mysql = salt['grains.filter_by'](rawmap, grain='os', merge=salt['pillar.get']('mysql:lookup')) %}
-
+{% from "mysql/macros.jinja" import mysql, mysql_connection_args with context %}
 {% set mysql_root_user = salt['pillar.get']('mysql:server:root_user', 'root') %}
 {% set mysql_root_pass = salt['pillar.get']('mysql:server:root_password', salt['grains.get']('server_id')) %}
 {% set mysql_host = salt['pillar.get']('mysql:server:host', 'localhost') %}
@@ -19,12 +18,7 @@ include:
 {{ state_id }}:
   mysql_database.present:
     - name: {{ database }}
-    - connection_host: '{{ mysql_host }}'
-    - connection_user: '{{ mysql_salt_user }}'
-    {% if mysql_salt_pass %}
-    - connection_pass: '{{ mysql_salt_pass }}'
-    {% endif %}
-    - connection_charset: utf8
+    {{ mysql_connection_args() }}
 
 {% if salt['pillar.get'](['mysql', 'schema', database, 'load']|join(':'), False) %}
 {{ state_id }}_schema:
@@ -42,7 +36,11 @@ include:
 
 {{ state_id }}_load:
   cmd.wait:
+{% if mysql_host == 'localhost' %}
+    - name: mysql -u {{ mysql_salt_user }} -p{{ mysql_salt_pass }} {{ database }} < {{ schema_dir }}/{{ database }}.schema
+{% else %}
     - name: mysql -u {{ mysql_salt_user }} -h{{ mysql_host }} -p{{ mysql_salt_pass }} {{ database }} < {{ schema_dir }}/{{ database }}.schema
+{% endif %}
     - watch:
       - file: {{ state_id }}_schema
       - mysql_database: {{ state_id }}

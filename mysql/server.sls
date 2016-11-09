@@ -3,7 +3,7 @@ include:
   - mysql.python
 
 {% from "mysql/defaults.yaml" import rawmap with context %}
-{%- set mysql = salt['grains.filter_by'](rawmap, grain='os', merge=salt['pillar.get']('mysql:lookup')) %}
+{% from "mysql/macros.jinja" import mysql, mysql_connection_host, mysql_connection_args with context %}
 
 {% set os = salt['grains.get']('os', None) %}
 {% set os_family = salt['grains.get']('os_family', None) %}
@@ -38,26 +38,6 @@ mysql_root_password:
     - unless: mysql --user {{ mysql_root_user }} --password='{{ mysql_root_password|replace("'", "'\"'\"'") }}' --execute="SELECT 1;"
     - require:
       - service: mysqld
-
-{% for host in ['localhost', 'localhost.localdomain', salt['grains.get']('fqdn')] %}
-mysql_delete_anonymous_user_{{ host }}:
-  mysql_user:
-    - absent
-    - host: {{ host or "''" }}
-    - name: ''
-    - connection_host: '{{ mysql_host }}'
-    - connection_user: '{{ mysql_salt_user }}'
-    {% if mysql_salt_password %}
-    - connection_pass: '{{ mysql_salt_password }}'
-    {% endif %}
-    - connection_charset: utf8
-    - require:
-      - service: mysqld
-      - pkg: mysql_python
-      {%- if (mysql_salt_user == mysql_root_user) and mysql_root_password %}
-      - cmd: mysql_root_password
-      {%- endif %}
-{% endfor %}
 {% endif %}
 {% endif %}
 
@@ -99,6 +79,45 @@ mysql_initialize:
     - require:
       - pkg: {{ mysql.server }}
 {% endif %}
+
+{% if os_family == 'FreeBSD' %}
+mysql_root_password:
+  mysql_user.present:
+    - name: {{ mysql_root_user }}
+    - host: localhost
+    - password: '{{ mysql_root_password|replace("'", "'\"'\"'") }}'
+    {{ mysql_connection_host() }}
+{% endif %}
+
+{% for host in ['127.0.0.1', '::1', salt['grains.get']('fqdn')] %}
+{% if host != 'localhost' %}
+mysql_drop_root_{{ host }}:
+  mysql_user.absent:
+    - name: {{ mysql_root_user }}
+    - host: '{{ host }}'
+    {{ mysql_connection_args() }}
+{% endif %}
+{% endfor %}
+
+{% for host in ['localhost', 'localhost.localdomain', salt['grains.get']('fqdn')] %}
+mysql_delete_anonymous_user_{{ host }}:
+  mysql_user:
+    - absent
+    - host: {{ host or "''" }}
+    - name: ''
+    {{ mysql_connection_args() }}
+    - connection_charset: utf8
+    - require:
+      - service: mysqld
+      - pkg: mysql_python
+      {%- if (mysql_salt_user == mysql_root_user) and mysql_root_password %}
+      {%- if os_family == 'FreeBSD' %}
+      - mysql_user: mysql_root_password
+      {%- else -%}
+      - cmd: mysql_root_password
+      {%- endif %}
+      {%- endif %}
+{% endfor %}
 
 mysqld:
   service.running:
