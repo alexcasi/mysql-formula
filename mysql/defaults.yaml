@@ -352,6 +352,7 @@ FreeBSD:
   service: mysql-server
   python: pymysql
   dev: mysql56-server
+  schema_dir: /usr/local/etc/mysql
   config:
     file: /usr/local/etc/my.cnf
     sections:

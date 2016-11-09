@@ -9,6 +9,8 @@
 {% set mysql_salt_user = salt['pillar.get']('mysql:salt_user:salt_user_name', mysql_root_user) %}
 {% set mysql_salt_pass = salt['pillar.get']('mysql:salt_user:salt_user_password', mysql_root_pass) %}
 
+{% set schema_dir = mysql.get('schema_dir', '/etc/mysql') %}
+
 include:
   - mysql.python
 
@@ -27,7 +29,7 @@ include:
 {% if salt['pillar.get'](['mysql', 'schema', database, 'load']|join(':'), False) %}
 {{ state_id }}_schema:
   file.managed:
-    - name: /etc/mysql/{{ database }}.schema
+    - name: {{ schema_dir }}/{{ database }}.schema
     - source: {{ salt['pillar.get'](['mysql', 'schema', database, 'source']|join(':')) }}
 {%- set template_type = salt['pillar.get'](['mysql', 'schema', database, 'template']|join(':'), False) %}
 {%- set template_context = salt['pillar.get'](['mysql', 'schema', database, 'context']|join(':'), {}) %}
@@ -40,7 +42,7 @@ include:
 
 {{ state_id }}_load:
   cmd.wait:
-    - name: mysql -u {{ mysql_salt_user }} -h{{ mysql_host }} -p{{ mysql_salt_pass }} {{ database }} < /etc/mysql/{{ database }}.schema
+    - name: mysql -u {{ mysql_salt_user }} -h{{ mysql_host }} -p{{ mysql_salt_pass }} {{ database }} < {{ schema_dir }}/{{ database }}.schema
     - watch:
       - file: {{ state_id }}_schema
       - mysql_database: {{ state_id }}
