@@ -26,3 +26,8 @@
     {% endif %}
     - connection_charset: utf8
 {%- endmacro %}
+
+{% macro mysql_state_require() -%}
+      - service: mysqld
+      - pkg: mysql_python
+{%- endmacro %}

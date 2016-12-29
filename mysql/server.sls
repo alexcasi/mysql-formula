@@ -3,7 +3,7 @@ include:
   - mysql.python
 
 {% from "mysql/defaults.yaml" import rawmap with context %}
-{% from "mysql/macros.jinja" import mysql, mysql_connection_host, mysql_connection_args with context %}
+{% from "mysql/macros.jinja" import mysql, mysql_connection_host, mysql_connection_args, mysql_state_require with context %}
 
 {% set os = salt['grains.get']('os', None) %}
 {% set os_family = salt['grains.get']('os_family', None) %}
@@ -87,6 +87,8 @@ mysql_root_password:
     - host: localhost
     - password: '{{ mysql_root_password|replace("'", "'\"'\"'") }}'
     {{ mysql_connection_host() }}
+    - require:
+      {{ mysql_state_require() }}
 {% endif %}
 
 {% for host in ['127.0.0.1', '::1', salt['grains.get']('fqdn')] %}
@@ -96,6 +98,8 @@ mysql_drop_root_{{ host }}:
     - name: {{ mysql_root_user }}
     - host: '{{ host }}'
     {{ mysql_connection_args() }}
+    - require:
+      {{ mysql_state_require() }}
 {% endif %}
 {% endfor %}
 
