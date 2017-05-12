@@ -117,7 +117,7 @@ mysql_delete_anonymous_user_{{ host }}:
       {%- if (mysql_salt_user == mysql_root_user) and mysql_root_password %}
       {%- if os_family == 'FreeBSD' %}
       - mysql_user: mysql_root_password
-      {%- else -%}
+      {%- elif os_family in ['RedHat', 'Suse'] %}
       - cmd: mysql_root_password
       {%- endif %}
       {%- endif %}
